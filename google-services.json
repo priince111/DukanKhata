@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "870365623044",
+    "project_id": "dukankhata-f2d78",
+    "storage_bucket": "dukankhata-f2d78.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:870365623044:android:961f31dfa4676b1d1e1651",
+        "android_client_info": {
+          "package_name": "com.khata.dukankhata"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCZPvdXxTdesTWNf8yY0xVY2hIuwGyHrb4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
