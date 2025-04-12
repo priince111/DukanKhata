@@ -1,25 +1,11 @@
 const express = require("express");
-
 const router = express.Router();
+
+const { sequelize, Customer, Transaction, BillTransaction } = require("../models");
+
+const { storage, cloudinary } = require("../config/cloudinary");
 const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
-
-const BillTransaction = require("../models/BillTransaction");
-const Transaction = require("../models/Transaction");
-const Customer = require("../models/Customer");
-const sequelize = require("../config/db");
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/"); // make sure this folder exists
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
-});
-
-const upload = multer({ storage: storage });
+const upload = multer({ storage });
 
 router.post(
   "/add-bill-transaction",
@@ -41,7 +27,11 @@ router.post(
 
       const [day, month, year] = date.split("-");
       const parsedDate = new Date(`${year}-${month}-${day}`);
-      const imagePaths = req.files ? req.files.map((file) => file.path) : [];
+      const imagePaths =
+        req.files?.map((file) => ({
+          url: file.path,
+          public_id: file.filename,
+        })) || [];
 
       let transactionData = {
         transactionId,
@@ -94,29 +84,27 @@ router.put(
       const parsedDate = new Date(`${year}-${month}-${day}`);
 
       const keepImages = JSON.parse(imagesToKeep);
-      // Update the transaction (debit or credit)
+      // Delete images not in keep list from Cloudinary
+
       const imagesToDelete = (billTransaction.images || []).filter(
-        (img) => !keepImages.includes(img)
+        (img) => !keepImages.find((k) => k.public_id === img.public_id)
       );
-      imagesToDelete.forEach((img) => {
-        const fullPath = path.join(__dirname, "..", img);
-        fs.access(fullPath, fs.constants.F_OK, (err) => {
-          if (err) {
-            console.warn("Image file not found, skipping delete:", fullPath);
-          } else {
-            fs.unlink(fullPath, (err) => {
-              if (err)
-                console.error("Failed to delete image:", img, err.message);
-            });
-          }
-        });
-      });
+
+      for (const img of imagesToDelete) {
+        if (img.public_id) {
+          await cloudinary.uploader.destroy(img.public_id);
+        }
+      }
 
       // New images uploaded
-      const newUploadedPaths = req.files?.map((file) => file.path) || [];
+      const newUploaded =
+        req.files?.map((file) => ({
+          url: file.path,
+          public_id: file.filename,
+        })) || [];
 
       // Final image list
-      const finalImages = [...keepImages, ...newUploadedPaths];
+      const finalImages = [...keepImages, ...newUploaded];
       await BillTransaction.update(
         {
           totalAmount,
@@ -366,17 +354,10 @@ router.post("/delete-bill-transaction/:billTransactionId", async (req, res) => {
 
     // Delete the transaction
 
-    if (billTransaction.images && Array.isArray(billTransaction.images)) {
-      billTransaction.images.forEach((imagePath) => {
-        const fullPath = path.join(__dirname, "..", imagePath);
-        fs.unlink(fullPath, (err) => {
-          if (err) {
-            console.error(`Failed to delete image ${imagePath}:`, err.message);
-          } else {
-            console.log(`Deleted image: ${imagePath}`);
-          }
-        });
-      });
+    for (const image of billTransaction.images || []) {
+      if (image.public_id) {
+        await cloudinary.uploader.destroy(image.public_id);
+      }
     }
     await billTransaction.destroy();
 

@@ -1,67 +1,66 @@
 const express = require("express");
 const router = express.Router();
+const { sequelize, Customer, Transaction } = require("../models");
+
+
+const { storage, cloudinary } = require("../config/cloudinary");
 const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
-const Transaction = require("../models/Transaction");
-const Customer = require("../models/Customer");
-const sequelize = require("../config/db");
+const upload = multer({ storage });
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/"); // make sure this folder exists
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
-});
+router.post(
+  "/add-transaction",
+  upload.array("images", 10),
+  async (req, res) => {
+    try {
+      const {
+        customerId,
+        type,
+        totalAmount,
+        originalAmount,
+        duplicateAmount,
+        details,
+        date,
+      } = req.body;
 
-const upload = multer({ storage: storage });
+      if (!customerId || !type || !totalAmount || !date) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
 
-router.post("/add-transaction", upload.array("images", 10), async (req, res) => {
-  try {
-    const {
-      customerId,
-      type,
-      totalAmount,
-      originalAmount,
-      duplicateAmount,
-      details,
-      date,
-    } = req.body;
+      const customer = await Customer.findByPk(customerId);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
 
-    if (!customerId || !type || !totalAmount || !date) {
-      return res.status(400).json({ message: "Missing required fields" });
+      const [day, month, year] = date.split("-");
+      const newDate = new Date(`${year}-${month}-${day}`);
+
+      const imagePaths =
+        req.files?.map((file) => ({
+          url: file.path,
+          public_id: file.filename,
+        })) || [];
+
+      const transactionData = {
+        customerId,
+        type,
+        totalAmount,
+        originalAmount: originalAmount || 0,
+        duplicateAmount: duplicateAmount || 0,
+        details: details || "",
+        date : newDate,
+        images: imagePaths,
+      };
+
+      const transaction = await Transaction.create(transactionData);
+      res
+        .status(201)
+        .json({ message: "Transaction added successfully", transaction });
+    } catch (error) {
+      console.error("Error adding transaction:", error);
+      res.status(500).json({ message: "Server error", error });
     }
-
-    // Check if customer exists
-    const customer = await Customer.findByPk(customerId);
-    if (!customer) {
-      return res.status(404).json({ message: "Customer not found" });
-    }
-
-    const imagePaths = req.files ? req.files.map((file) => file.path) : [];
-
-    let transactionData = {
-      customerId,
-      type,
-      totalAmount,
-      originalAmount: originalAmount || 0,
-      duplicateAmount: duplicateAmount || 0,
-      details: details || "",
-      date,
-      images: imagePaths,
-    };
-
-    const transaction = await Transaction.create(transactionData);
-    res
-      .status(201)
-      .json({ message: "Transaction added successfully", transaction });
-  } catch (error) {
-    console.error("Error adding transaction:", error);
-    res.status(500).json({ message: "Server error", error });
   }
-});
+);
 
 router.put(
   "/update-transaction",
@@ -75,40 +74,37 @@ router.put(
         totalAmount,
         date,
         details,
-        imagesToKeep = "[]", // should be a JSON stringified array
+        imagesToKeep = "[]", // JSON stringified array of { url, public_id }
       } = req.body;
 
       const transaction = await Transaction.findByPk(transactionId);
       if (!transaction)
         return res.status(404).json({ message: "Transaction not found" });
+
       const keepImages = JSON.parse(imagesToKeep);
+
+      // Delete images not in keep list from Cloudinary
+      const imagesToDelete = (transaction.images || []).filter(
+        (img) => !keepImages.find((k) => k.public_id === img.public_id)
+      );
+
+      for (const img of imagesToDelete) {
+        if (img.public_id) {
+          await cloudinary.uploader.destroy(img.public_id);
+        }
+      }
+
+      const newUploaded =
+        req.files?.map((file) => ({
+          url: file.path,
+          public_id: file.filename,
+        })) || [];
+
+      const finalImages = [...keepImages, ...newUploaded];
 
       const [day, month, year] = date.split("-");
       const newDate = new Date(`${year}-${month}-${day}`);
 
-      // Determine which images to delete
-      const imagesToDelete = (transaction.images || []).filter(
-        (img) => !keepImages.includes(img)
-      );
-      imagesToDelete.forEach((img) => {
-        const fullPath = path.join(__dirname, "..", img);
-        fs.access(fullPath, fs.constants.F_OK, (err) => {
-          if (err) {
-            console.warn("Image file not found, skipping delete:", fullPath);
-          } else {
-            fs.unlink(fullPath, (err) => {
-              if (err) console.error("Failed to delete image:", img, err.message);
-            });
-          }
-        });
-      });      
-      // New images uploaded
-      const newUploadedPaths = req.files?.map((file) => file.path) || [];
-
-      // Final image list
-      const finalImages = [...keepImages, ...newUploadedPaths];
-
-      // Update transaction
       await transaction.update({
         totalAmount: parseInt(totalAmount),
         duplicateAmount: parseInt(duplicateAmount || 0),
@@ -247,34 +243,23 @@ router.post("/delete-transaction/:transactionId", async (req, res) => {
   }
 
   try {
-    // Find the transaction
     const transaction = await Transaction.findByPk(transactionId);
     if (!transaction) {
       return res.status(404).json({ message: "Transaction not found" });
     }
 
-    // Delete associated image files if any
-    if (transaction.images && Array.isArray(transaction.images)) {
-      transaction.images.forEach((imagePath) => {
-        const fullPath = path.join(__dirname, "..", imagePath);
-        fs.unlink(fullPath, (err) => {
-          if (err) {
-            console.error(`Failed to delete image ${imagePath}:`, err.message);
-          } else {
-            console.log(`Deleted image: ${imagePath}`);
-          }
-        });
-      });
+    // Delete associated Cloudinary images
+    for (const image of transaction.images || []) {
+      if (image.public_id) {
+        await cloudinary.uploader.destroy(image.public_id);
+      }
     }
 
-    // Delete the transaction
     await transaction.destroy();
 
-    res
-      .status(200)
-      .json({
-        message: "Transaction and associated images deleted successfully",
-      });
+    res.status(200).json({
+      message: "Transaction and associated images deleted successfully",
+    });
   } catch (error) {
     console.error("Error deleting transaction:", error);
     res.status(500).json({ message: "Server error", error });

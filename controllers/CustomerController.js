@@ -1,9 +1,5 @@
 const express = require("express");
-const { Op, fn, col, literal } = require("sequelize");
-const Owner = require("../models/Owner");
-const Customer = require("../models/Customer");
-const Transaction = require("../models/Transaction");
-
+const {Owner, Customer, Transaction } = require("../models");
 const router = express.Router();
 
 // API to Add a Customer

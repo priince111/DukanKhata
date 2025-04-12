@@ -1,56 +1,61 @@
-const { DataTypes } = require("sequelize");
-const sequelize = require("../config/db");
-const Transaction = require("./Transaction");
+// models/BillTransaction.js
 
-const BillTransaction = sequelize.define(
-  "BillTransaction",
-  {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-    },
-    transactionId: {
-      type: DataTypes.UUID,
-      allowNull: false,
-      references: {
-        model: Transaction,
-        key: "id",
+module.exports = (sequelize, DataTypes) => {
+  const BillTransaction = sequelize.define(
+    "BillTransaction",
+    {
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
       },
-      onDelete: 'CASCADE',
-    },    
-    originalAmount: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
+      transactionId: {
+        type: DataTypes.UUID,
+        allowNull: false,
+      },
+      originalAmount: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      duplicateAmount: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      totalAmount: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      date: {
+        type: DataTypes.DATE,
+        allowNull: false,
+      },
+      details: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      images: {
+        type: DataTypes.JSONB,
+        allowNull: true,
+      },
     },
-    duplicateAmount: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-    },
-    totalAmount: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-    },
-    date: {
-      type: DataTypes.DATE,
-      allowNull: false,
-    },
-    details: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    images: {
-      type: DataTypes.ARRAY(DataTypes.STRING),
-      allowNull: true,
-    },
-  },
-  {
-    tableName: "bill_transactions",
-    timestamps: true,
-  }
-);
+    {
+      tableName: "bill_transaction",
+      timestamps: true,
+    }
+  );
 
-Transaction.hasMany(BillTransaction, { foreignKey: "transactionId", onDelete: "CASCADE" });
-BillTransaction.belongsTo(Transaction, { foreignKey: "transactionId" });
+  // Setup associations in the same file using .associate
+  BillTransaction.associate = (models) => {
+    BillTransaction.belongsTo(models.Transaction, {
+      foreignKey: "transactionId",
+      onDelete: "CASCADE",
+    });
 
-module.exports = BillTransaction;
+    models.Transaction.hasMany(BillTransaction, {
+      foreignKey: "transactionId",
+      onDelete: "CASCADE",
+    });
+  };
+
+  return BillTransaction;
+};

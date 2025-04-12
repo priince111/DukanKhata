@@ -1,5 +1,4 @@
-const admin = require("../config/firebase");
-const Owner = require("../models/Owner");
+const {Owner} = require("../models");
 const express = require("express")
 const router = express.Router();
 
