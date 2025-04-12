@@ -16,7 +16,7 @@ module.exports = {
     dialectOptions: {
       ssl: {
         require: true,
-        rejectUnauthorized: false,
+        rejectUnauthorized: true,
         ca: fs.readFileSync(path.resolve(__dirname, 'aiven-ca.pem')).toString(),
       },
     },
