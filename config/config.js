@@ -1,4 +1,6 @@
 require('dotenv').config(); // Load env vars
+const fs = require('fs');
+const path = require('path');
 
 module.exports = {
   development: {
@@ -14,7 +16,8 @@ module.exports = {
     dialectOptions: {
       ssl: {
         require: true,
-        rejectUnauthorized: false, // Render uses self-signed SSL certs
+        rejectUnauthorized: false,
+        ca: fs.readFileSync(path.resolve(__dirname, 'aiven-ca.pem')).toString(),
       },
     },
   },
