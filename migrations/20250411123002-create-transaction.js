@@ -1,8 +1,8 @@
-'use strict';
+"use strict";
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('transaction', {
+    await queryInterface.createTable("transaction", {
       id: {
         type: Sequelize.UUID,
         defaultValue: Sequelize.UUIDV4,
@@ -12,14 +12,17 @@ module.exports = {
         type: Sequelize.UUID,
         allowNull: false,
         references: {
-          model: 'customer',
-          key: 'id',
+          model: "customer",
+          key: "id",
         },
-        onDelete: 'CASCADE',
+        onDelete: "CASCADE",
       },
       type: {
-        type: Sequelize.ENUM('debit', 'credit'),
+        type: Sequelize.STRING,
         allowNull: false,
+        validate: {
+          isIn: [["credit", "debit"]],
+        },
       },
       originalAmount: {
         type: Sequelize.INTEGER,
@@ -55,7 +58,9 @@ module.exports = {
   },
 
   down: async (queryInterface) => {
-    await queryInterface.dropTable('transaction');
-    await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_transaction_transactionType";');
+    await queryInterface.dropTable("transaction");
+    await queryInterface.sequelize.query(
+      'DROP TYPE IF EXISTS "enum_transaction_transactionType";'
+    );
   },
 };

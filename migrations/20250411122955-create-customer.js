@@ -1,8 +1,8 @@
-'use strict';
+"use strict";
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('customer', {
+    await queryInterface.createTable("customer", {
       id: {
         type: Sequelize.UUID,
         defaultValue: Sequelize.UUIDV4,
@@ -17,21 +17,27 @@ module.exports = {
         allowNull: true,
       },
       transactionType: {
-        type: Sequelize.ENUM('both', 'duplicate'),
+        type: Sequelize.STRING,
         allowNull: false,
+        validate: {
+          isIn: [["both", "duplicate"]],
+        },
       },
       billType: {
-        type: Sequelize.ENUM('normal', 'bill_based'),
+        type: Sequelize.STRING,
         allowNull: false,
+        validate: {
+          isIn: [["normal", "bill_based"]],
+        },
       },
       ownerId: {
         type: Sequelize.UUID,
         allowNull: false,
         references: {
-          model: 'owner',
-          key: 'id',
+          model: "owner",
+          key: "id",
         },
-        onDelete: 'CASCADE',
+        onDelete: "CASCADE",
       },
       pendingBalance: {
         type: Sequelize.INTEGER,
@@ -41,15 +47,19 @@ module.exports = {
       updatedAt: Sequelize.DATE,
     });
 
-    await queryInterface.addIndex('customer', ['phone', 'ownerId'], {
+    await queryInterface.addIndex("customer", ["phone", "ownerId"], {
       unique: true,
     });
   },
 
   down: async (queryInterface) => {
-    await queryInterface.removeIndex('customer', ['phone', 'ownerId']);
-    await queryInterface.dropTable('customer');
-    await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_customer_transactionType";');
-    await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_customer_billType";');
+    await queryInterface.removeIndex("customer", ["phone", "ownerId"]);
+    await queryInterface.dropTable("customer");
+    await queryInterface.sequelize.query(
+      'DROP TYPE IF EXISTS "enum_customer_transactionType";'
+    );
+    await queryInterface.sequelize.query(
+      'DROP TYPE IF EXISTS "enum_customer_billType";'
+    );
   },
 };

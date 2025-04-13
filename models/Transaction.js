@@ -14,8 +14,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
       },
       type: {
-        type: DataTypes.ENUM("debit", "credit"),
+        type: DataTypes.STRING,
         allowNull: false,
+        validate: {
+          isIn: [["debit", "credit"]],
+        },
       },
       originalAmount: {
         type: DataTypes.INTEGER,
