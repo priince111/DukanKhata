@@ -14,14 +14,6 @@ job.start();
 app.use(express.json());
 app.use(cors({ origin: "*" }));
 
-sequelize.sync({ alter: true })  // or { force: true } for a clean reset
-  .then(() => {
-    console.log('Sequelize models synced with database!');
-  })
-  .catch((err) => {
-    console.error('Error syncing database:', err);
-  });
-
 sequelize.authenticate()
   .then(() => console.log("✅ PostgreSQL Connected!"))
   .catch((error) => console.error("❌ Connection Error:", error));
