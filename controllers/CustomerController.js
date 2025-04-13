@@ -100,7 +100,7 @@ router.get("/list-customers", async (req, res) => {
           }
         }
 
-        pending += customer.pendingBalance;
+        pending += Number(customer.pendingBalance);
 
         return {
           ...customer.toJSON(),

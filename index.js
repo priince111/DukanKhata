@@ -6,9 +6,11 @@ const login = require('./controllers/LoginController')
 const customer = require('./controllers/CustomerController')
 const billTransaction = require('./controllers/BillTransactionController')
 const transaction = require('./controllers/TransactionController')
+const job = require("./config/cron");
 require('dotenv').config();
 
 const app = express();
+job.start();
 app.use(express.json());
 app.use(cors({ origin: "*" }));
 
