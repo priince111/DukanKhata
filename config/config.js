@@ -17,7 +17,6 @@ module.exports = {
       ssl: {
         require: true,
         rejectUnauthorized: true,
-        ca: process.env.PG_CA.replace(/\\n/g, '\n')
       },
     },
   },
