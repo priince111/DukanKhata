@@ -17,7 +17,7 @@ module.exports = {
       ssl: {
         require: true,
         rejectUnauthorized: true,
-        ca: fs.readFileSync(path.resolve(__dirname, 'aiven-ca.pem')).toString(),
+        ca: process.env.PG_CA.replace(/\\n/g, '\n')
       },
     },
   },
