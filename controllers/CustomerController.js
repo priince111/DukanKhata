@@ -1,10 +1,10 @@
 const express = require("express");
-const {Owner, Customer, Transaction } = require("../models");
+const {Owner, Customer, Transaction,BillTransaction } = require("../models");
 const router = express.Router();
 
 // API to Add a Customer
 router.post("/add-customer", async (req, res) => {
-  const { name, phone, transactionType, billType, ownerNumber } = req.body.body;
+  const { name, phone, transactionType, billType, ownerNumber } = req.body;
   console.log("req.body", req.body);
 
   if (!name || !phone || !transactionType || !billType || !ownerNumber) {
@@ -53,65 +53,58 @@ router.get("/list-customers", async (req, res) => {
   }
 
   try {
-    // Find the owner by phone number
+    // 1. Get owner
     const owner = await Owner.findOne({ where: { phone } });
-
     if (!owner) {
       return res.status(404).json({ message: "Owner not found" });
     }
 
+    // 2. Get all customers for the owner, with latest transaction and bill transactions
     const customers = await Customer.findAll({
       where: { ownerId: owner.id },
       include: [
         {
           model: Transaction,
-          limit: 1,
+          include: [
+            {
+              model: BillTransaction,
+              required: false,
+            },
+          ],
           order: [["createdAt", "DESC"]],
-          separate: true,
         },
       ],
-      order: [["createdAt", "DESC"]], // Optional: Order customers by creation date
+      order: [["createdAt", "DESC"]],
     });
-    let pending = 0;
-    const customersWithTimestamps = await Promise.all(
-      customers.map(async (customer) => {
-        const lastTxn = customer.Transactions?.[0] || null;
-        let latestTimestamp = lastTxn
-          ? new Date(lastTxn.createdAt)
-          : new Date(customer.createdAt);
+        
 
-        // Default fallback
-        let lastTransaction = lastTxn;
-
-        if (customer.billType === "bill_based" && lastTxn) {
-          const billTxns = await lastTxn.getBillTransactions({
-            order: [["createdAt", "DESC"]],
-            limit: 1,
-          });
-
-          const latestBillTxn = billTxns[0];
-
-          if (
-            latestBillTxn &&
-            new Date(latestBillTxn.createdAt) > latestTimestamp
-          ) {
-            latestTimestamp = new Date(latestBillTxn.createdAt);
-            lastTransaction = latestBillTxn;
-          }
+    const customersWithTimestamps = customers.map((customer) => {
+      let latestTimestamp = new Date(customer.updatedAt);
+    
+      // Loop through transactions
+      customer.Transactions.forEach((txn) => {
+        if (new Date(txn.updatedAt) > latestTimestamp) {
+          latestTimestamp = new Date(txn.updatedAt);
         }
+    
+        // Loop through bill transactions inside each transaction
+        txn.BillTransactions?.forEach((billTxn) => {
+          if (new Date(billTxn.updatedAt) > latestTimestamp) {
+            latestTimestamp = new Date(billTxn.updatedAt);
+          }
+        });
+      });
+    
+      return {
+        ...customer.toJSON(),
+        lastUpdated: latestTimestamp,
+      };
+    });
 
-        pending += Number(customer.pendingBalance);
-
-        return {
-          ...customer.toJSON(),
-          lastTransaction: latestTimestamp,
-        };
-      })
-    );
-
-    return res
-      .status(200)
-      .json({ customers: customersWithTimestamps, owner, pending });
+    return res.status(200).json({
+      customers: customersWithTimestamps,
+      owner,
+    });
   } catch (error) {
     console.error("Error fetching customers:", error);
     return res.status(500).json({
@@ -121,10 +114,11 @@ router.get("/list-customers", async (req, res) => {
   }
 });
 
+
 // API to Update a Customer
 // API to Update a Customer
 router.patch("/update-customer", async (req, res) => {
-  const { name, phone, id, ownerId } = req.body.body;
+  const { name, phone, id, ownerId } = req.body;
 
   if (!name || !id || !ownerId) {
     return res

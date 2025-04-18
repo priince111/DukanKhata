@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const { sequelize, Customer, Transaction, BillTransaction } = require("../models");
+const { BillTransaction } = require("../models");
 
 const { storage, cloudinary } = require("../config/cloudinary");
 const multer = require("multer");
@@ -105,238 +105,22 @@ router.put(
 
       // Final image list
       const finalImages = [...keepImages, ...newUploaded];
-      await BillTransaction.update(
-        {
-          totalAmount,
-          duplicateAmount: duplicateAmount ? parseInt(duplicateAmount) : 0,
-          originalAmount: originalAmount ? parseInt(originalAmount) : 0,
-          date: parsedDate,
-          details,
-          images: finalImages,
-        },
-        { where: { id: billTransactionId } }
-      );
+      await billTransaction.update({
+        totalAmount: parseInt(totalAmount),
+        duplicateAmount: parseInt(duplicateAmount || 0),
+        originalAmount: parseInt(originalAmount || 0),
+        date: parsedDate,
+        details: details || "",
+        images: finalImages,
+      });
       console.log("updated transaction", billTransaction);
-      res.status(200).json({ message: "Transaction updated successfully" });
+      res.status(200).json({ message: "Transaction updated successfully",billTransaction });
     } catch (error) {
       console.error("Error updating transaction:", error);
       res.status(500).json({ message: "Server error", error });
     }
   }
 );
-
-router.get("/list-bill-transactions/:customerId", async (req, res) => {
-  try {
-    const { customerId } = req.params;
-
-    if (!customerId) {
-      return res.status(400).json({ message: "Customer ID is required" });
-    }
-
-    const customer = await Customer.findByPk(customerId);
-    if (!customer) {
-      return res.status(404).json({ message: "Customer not found" });
-    }
-
-    const debitTotals = await Transaction.findOne({
-      attributes: [
-        [
-          sequelize.fn(
-            "COALESCE",
-            sequelize.fn("SUM", sequelize.col("totalAmount")),
-            0
-          ),
-          "totalAmount",
-        ],
-        [
-          sequelize.fn(
-            "COALESCE",
-            sequelize.fn("SUM", sequelize.col("duplicateAmount")),
-            0
-          ),
-          "duplicateAmount",
-        ],
-        [
-          sequelize.fn(
-            "COALESCE",
-            sequelize.fn("SUM", sequelize.col("originalAmount")),
-            0
-          ),
-          "originalAmount",
-        ],
-      ],
-      where: { customerId, type: "debit" },
-      raw: true,
-    });
-
-    const creditTotals = await BillTransaction.findOne({
-      attributes: [
-        [
-          sequelize.fn(
-            "COALESCE",
-            sequelize.fn("SUM", sequelize.col("BillTransaction.totalAmount")),
-            0
-          ),
-          "totalAmount",
-        ],
-        [
-          sequelize.fn(
-            "COALESCE",
-            sequelize.fn(
-              "SUM",
-              sequelize.col("BillTransaction.originalAmount")
-            ),
-            0
-          ),
-          "originalAmount",
-        ],
-        [
-          sequelize.fn(
-            "COALESCE",
-            sequelize.fn(
-              "SUM",
-              sequelize.col("BillTransaction.duplicateAmount")
-            ),
-            0
-          ),
-          "duplicateAmount",
-        ],
-      ],
-      include: [
-        {
-          model: Transaction,
-          attributes: [],
-          where: {
-            customerId: customerId,
-          },
-        },
-      ],
-      raw: true,
-    });
-    console.log("debitTotal", debitTotals);
-    console.log("creditTotal", creditTotals);
-    const remainingTotal = debitTotals.totalAmount - creditTotals.totalAmount;
-    const remainingDuplicate =
-      debitTotals.duplicateAmount - creditTotals.duplicateAmount;
-    const remainingOriginal =
-      debitTotals.originalAmount - creditTotals.originalAmount;
-    customer.pendingBalance = remainingTotal;
-    await customer.save();
-
-    const transactions = await Transaction.findAll({
-      where: { customerId },
-      order: [
-        ["date", "DESC"],
-        ["createdAt", "ASC"],
-      ],
-      attributes: [
-        "id",
-        "type",
-        "totalAmount",
-        "duplicateAmount",
-        "originalAmount",
-        "date",
-        "details",
-        "createdAt",
-        "images",
-      ],
-    });
-    res.status(200).json({
-      remaining: {
-        total: remainingTotal,
-        duplicate: remainingDuplicate,
-        original: remainingOriginal,
-      },
-      transactions,
-    });
-    console.log("transactions", transactions);
-    // Fetch all transactions sorted by date (newest first)
-  } catch (error) {
-    console.error("Error fetching recieved amount and transactions:", error);
-    res.status(500).json({ message: "Server error", error });
-  }
-});
-
-router.get("/list-credit-transactions/:transactionId", async (req, res) => {
-  try {
-    const { transactionId } = req.params;
-
-    if (!transactionId) {
-      return res.status(400).json({ message: "Transaction ID is required" });
-    }
-
-    const transaction = await Transaction.findByPk(transactionId);
-    if (!transaction) {
-      return res.status(404).json({ message: "Customer not found" });
-    }
-
-    const creditTotals = await BillTransaction.findOne({
-      attributes: [
-        [
-          sequelize.fn(
-            "COALESCE",
-            sequelize.fn("SUM", sequelize.col("totalAmount")),
-            0
-          ),
-          "totalAmount",
-        ],
-        [
-          sequelize.fn(
-            "COALESCE",
-            sequelize.fn("SUM", sequelize.col("duplicateAmount")),
-            0
-          ),
-          "duplicateAmount",
-        ],
-        [
-          sequelize.fn(
-            "COALESCE",
-            sequelize.fn("SUM", sequelize.col("originalAmount")),
-            0
-          ),
-          "originalAmount",
-        ],
-      ],
-      where: { transactionId },
-      raw: true,
-    });
-
-    const receivedTotal = creditTotals.totalAmount;
-    const receivedDuplicate = creditTotals.duplicateAmount;
-    const receivedOriginal = creditTotals.originalAmount;
-
-    const transactions = await BillTransaction.findAll({
-      where: { transactionId },
-      order: [
-        ["date", "DESC"],
-        ["createdAt", "ASC"],
-      ],
-      attributes: [
-        "id",
-        "totalAmount",
-        "duplicateAmount",
-        "originalAmount",
-        "date",
-        "details",
-        "createdAt",
-        "images",
-      ],
-    });
-    res.status(200).json({
-      received: {
-        total: receivedTotal,
-        duplicate: receivedDuplicate,
-        original: receivedOriginal,
-      },
-      transactions,
-    });
-    console.log("transactions", transactions);
-    // Fetch all transactions sorted by date (newest first)
-  } catch (error) {
-    console.error("Error fetching recieved amount and transactions:", error);
-    res.status(500).json({ message: "Server error", error });
-  }
-});
 
 router.post("/delete-bill-transaction/:billTransactionId", async (req, res) => {
   const { billTransactionId } = req.params;

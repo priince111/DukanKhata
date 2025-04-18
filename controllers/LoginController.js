@@ -3,8 +3,8 @@ const express = require("express")
 const router = express.Router();
 
 router.post("/save-owner",async (req, res) => {
-  console.log(req.body);
-  const {phone, name} = req.body.phone;
+  console.log("save owner",req.body);
+  const {phone, name} = req.body;
   if (!phone || !name) {
     return res.status(400).json({ error: "Phone and name are required" });
   }
