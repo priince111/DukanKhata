@@ -7,7 +7,7 @@ router.post("/add-customer", async (req, res) => {
   const { name, phone, transactionType, billType, ownerNumber } = req.body;
   console.log("req.body", req.body);
 
-  if (!name || !phone || !transactionType || !billType || !ownerNumber) {
+  if (!name || !transactionType || !billType || !ownerNumber) {
     return res.status(400).json({ message: "Fill all the required details" });
   }
 
@@ -21,9 +21,12 @@ router.post("/add-customer", async (req, res) => {
     const ownerId = owner.id;
 
     // Check if customer already exists
-    let customer = await Customer.findOne({ where: { phone, ownerId } });
-    if (customer) {
-      return res.status(400).json({ message: "Customer already exists" });
+    let customer;
+    if(phone){
+      customer = await Customer.findOne({ where: { phone, ownerId } });
+      if (customer) {
+        return res.status(400).json({ message: "Customer already exists" });
+      }
     }
 
     // Create new customer
