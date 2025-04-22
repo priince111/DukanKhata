@@ -42,12 +42,13 @@ router.get("/get-owner", async (req, res) => {
       return res.status(201).json({ message: "Owner not found","exists": false });
     }
 
-    return res.status(200).json({ message: "Owner found successfully","exists": true  });
+    return res.status(200).json({ message: "Owner found successfully","exists": true,owner  });
   } catch (error) {
     console.error("Error retrieving owner:", error);
     return res.status(500).json({ error: "Database error" });
   }
 });
+
 
 module.exports = router;
 

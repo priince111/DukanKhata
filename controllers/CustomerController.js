@@ -32,7 +32,7 @@ router.post("/add-customer", async (req, res) => {
     // Create new customer
     customer = await Customer.create({
       name,
-      phone,
+      phone: phone || null,
       transactionType,
       billType,
       ownerId,
@@ -161,6 +161,29 @@ router.patch("/update-customer", async (req, res) => {
       .json({ message: "Customer updated successfully", customer });
   } catch (error) {
     console.error("Error updating customer:", error);
+    return res.status(500).json({ message: "Server error", error });
+  }
+});
+
+router.delete("/delete-customer/:id", async (req, res) => {
+  const customerId = req.params.id;
+  console.log("in delete",customerId);
+  if (!customerId) {
+    return res.status(400).json({ message: "Customer ID is required" });
+  }
+
+  try {
+    const customer = await Customer.findByPk(customerId);
+
+    if (!customer) {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+
+    await customer.destroy(); // Will cascade delete transactions & bill transactions
+
+    return res.status(200).json({ message: "Customer and related data deleted successfully." });
+  } catch (error) {
+    console.error("Error deleting customer:", error);
     return res.status(500).json({ message: "Server error", error });
   }
 });
