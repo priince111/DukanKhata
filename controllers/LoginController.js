@@ -28,27 +28,6 @@ router.post("/save-owner",async (req, res) => {
   }
 });
 
-router.get("/get-owner", async (req, res) => {
-  const { phone } = req.query;
-
-  if (!phone) {
-    return res.status(400).json({ error: "Phone number is required" });
-  }
-  console.log("phone",phone);
-  try {
-    const owner = await Owner.findOne({ where: { phone } });
-
-    if (!owner) {
-      return res.status(201).json({ message: "Owner not found","exists": false });
-    }
-
-    return res.status(200).json({ message: "Owner found successfully","exists": true,owner  });
-  } catch (error) {
-    console.error("Error retrieving owner:", error);
-    return res.status(500).json({ error: "Database error" });
-  }
-});
-
 
 module.exports = router;
 

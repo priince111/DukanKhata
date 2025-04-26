@@ -4,33 +4,22 @@ const router = express.Router();
 
 // API to Add a Customer
 router.post("/add-customer", async (req, res) => {
-  const { name, phone, transactionType, billType, ownerNumber } = req.body;
+  const { name, phone, transactionType, billType, ownerId } = req.body;
   console.log("req.body", req.body);
 
-  if (!name || !transactionType || !billType || !ownerNumber) {
+  if (!name || !transactionType || !billType || !ownerId) {
     return res.status(400).json({ message: "Fill all the required details" });
   }
 
   try {
     // Check if owner exists
-    const owner = await Owner.findOne({ where: { phone: ownerNumber } });
+    const owner = await Owner.findByPk(ownerId);
     if (!owner) {
       return res.status(404).json({ message: "Owner not found" });
     }
 
-    const ownerId = owner.id;
-
-    // Check if customer already exists
-    let customer;
-    if(phone){
-      customer = await Customer.findOne({ where: { phone, ownerId } });
-      if (customer) {
-        return res.status(400).json({ message: "Customer already exists" });
-      }
-    }
-
     // Create new customer
-    customer = await Customer.create({
+    const customer = await Customer.create({
       name,
       phone: phone || null,
       transactionType,
@@ -137,20 +126,7 @@ router.patch("/update-customer", async (req, res) => {
       return res.status(404).json({ message: "Customer not found." });
     }
 
-    // If the phone number is changing, check for duplicates
-    if (phone && phone !== customer.phone) {
-      const existingCustomer = await Customer.findOne({
-        where: { phone, ownerId },
-      });
-
-      if (existingCustomer) {
-        return res.status(400).json({
-          message: "Another customer with this phone number already exists.",
-        });
-      }
-
-      customer.phone = phone;
-    }
+    customer.phone = phone?phone:null;
 
     customer.name = name;
 
@@ -185,6 +161,25 @@ router.delete("/delete-customer/:id", async (req, res) => {
   } catch (error) {
     console.error("Error deleting customer:", error);
     return res.status(500).json({ message: "Server error", error });
+  }
+});
+
+router.delete('/clear-all-transaction/:customerId', async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    // Delete all transactions for the customer
+    const customer = await Customer.findByPk(customerId);
+
+    if (!customer) {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+    await Transaction.destroy({ where: { customerId } });
+
+    res.status(200).json({ message: 'All transactions cleared.',customer });
+  } catch (err) {
+    console.error('Error clearing transactions:', err);
+    res.status(500).json({ error: 'Server error clearing transactions.' });
   }
 });
 
