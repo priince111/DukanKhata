@@ -1,0 +1,59 @@
+# React Native & Node.js
+node_modules/
+*.log
+*.lock
+npm-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Android (ignores the entire android folder)
+android/
+
+# iOS
+ios/
+*.xcodeproj
+*.xcworkspace
+*.xcuserstate
+*.pbxuser
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Generated Files
+*.apk
+*.aar
+*.bundle
+*.hmap
+*.ipa
+*.xcuserstate
+*.DS_Store
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+
+# Temporary files created by Metro to check the health of the file watcher
+.metro-health-check*
+
+# Yarn
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Testing
+coverage/
+
+# Miscellaneous
+*.env
+.env.local
+google-services.json
+api.js
